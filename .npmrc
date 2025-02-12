@@ -1,0 +1,1 @@
+@felicetteapp:registry=https://npm.pkg.github.com

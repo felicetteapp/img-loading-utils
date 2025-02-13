@@ -93,6 +93,14 @@ if(require.main === module){
               ${withPrefix("height")}="${result.height}"
               ${withPrefix("aspect-ratio")}="${result.width}/${result.height}"
               ${withPrefix("main-color")}="rgb(${result.mainColor.join(",")})"
+              style="
+                max-width: 100%;
+                max-height: 100%;
+                width: ${result.width}px;
+                height: auto;
+                background-color: rgb(${result.mainColor.join(",")});
+                aspect-ratio: ${result.width}/${result.height};
+              "
           ></div>
           `
     );

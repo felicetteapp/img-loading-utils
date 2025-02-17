@@ -1,6 +1,6 @@
 {
   "name": "@felicetteapp/img-loading-utils",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 0",
@@ -13,8 +13,8 @@
     "url": "https://github.com/felicetteapp/img-loading-utils.git"
   },
   "author": "Facundo Leites",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
+  "description": "A suite of CLI and NodeJS utilities for img-loading including generating placeholders and optimizing images",
   "dependencies": {
     "colorthief": "^2.6.0",
     "minimist": "^1.2.8",

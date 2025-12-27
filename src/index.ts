@@ -8,7 +8,7 @@ import ColorThiefNode, {
 
 const allowedImgsExtensions = ['.jpg', '.png', '.jpeg', '.gif', '.webp'];
 
-const getAllImagesFromDir = (dir: string) => {
+export const getAllImagesFromDir = (dir: string) => {
   const files = readdirSync(dir);
 
   return (
@@ -20,7 +20,7 @@ const getAllImagesFromDir = (dir: string) => {
   );
 };
 
-const getColorsFromImage = async (image: string) => {
+export const getColorsFromImage = async (image: string) => {
   const colors = await ColorThiefNode.getPalette(image, 5, 5);
   const mainColor = await ColorThiefNode.getColor(image, 5);
   return { mainColor, colors };
@@ -33,11 +33,23 @@ interface ImgData {
   mainColor: RGBColor;
   width: number;
   height: number;
+  htmlAttributes: Record<string, string>;
+  htmlStyles: Record<string, string>;
+  html: string;
 }
 
-const generateThumbnailFromImage = async (image: string, outPath: string) => {
+export const generateThumbnailFromImage = async (
+  image: string,
+  outPath: string,
+): Promise<ImgData> => {
   const originalImage = sharp(image);
   const metadata = await originalImage.metadata();
+
+  const originalOrientation = metadata.orientation || 1;
+
+  if (originalOrientation && originalOrientation !== 1) {
+    originalImage.rotate();
+  }
 
   await originalImage
     .resize(200, 200, {
@@ -51,13 +63,24 @@ const generateThumbnailFromImage = async (image: string, outPath: string) => {
     throw new Error('Could not get colors from image');
   }
 
-  return {
+  const partialData: Omit<ImgData, 'htmlAttributes' | 'htmlStyles' | 'html'> = {
     fullSize: image,
     thumbnail: outPath,
     colors: colors,
     mainColor,
     width: metadata.width ?? 0,
     height: metadata.height ?? 0,
+  };
+
+  const htmlAttributes = generateHtmlAttributes(partialData);
+  const htmlStyles = generateHtmlStyles(partialData);
+  const html = generateHtml({ ...partialData, htmlAttributes, htmlStyles });
+
+  return {
+    ...partialData,
+    htmlAttributes,
+    htmlStyles,
+    html,
   };
 };
 
@@ -66,6 +89,22 @@ const prefix = args.prefix || 'il';
 
 const withPrefix = (str: string) => `${prefix}-${str}`;
 
+export const generateThumbnailPath = (image: string, outDir: string) => {
+  return path.join(outDir, withPrefix(image));
+};
+
+export const thumbnailExists = (image: string, outDir: string) => {
+  const thumbnailPath = generateThumbnailPath(image, outDir);
+  try {
+    const found = readdirSync(outDir).find(
+      (file) => file === path.basename(thumbnailPath),
+    );
+    return !!found;
+  } catch {
+    return false;
+  }
+};
+
 export const getAll = async (
   images: string[],
   outDir: string,
@@ -73,7 +112,7 @@ export const getAll = async (
 ) => {
   const items: ImgData[] = [];
   for (const image of images) {
-    const thumbnail = path.join(outDir, withPrefix(image));
+    const thumbnail = generateThumbnailPath(image, outDir);
     items.push(
       await generateThumbnailFromImage(path.join(inDir, image), thumbnail),
     );
@@ -82,30 +121,52 @@ export const getAll = async (
   return items;
 };
 
+export const generateHtmlAttributes = (
+  data: Omit<ImgData, 'htmlAttributes' | 'htmlStyles' | 'html'>,
+) => {
+  const attrs = {
+    [withPrefix('thumbnail')]: data.thumbnail,
+    [withPrefix('fullsize')]: data.fullSize,
+    [withPrefix('width')]: data.width,
+    [withPrefix('height')]: data.height,
+    [withPrefix('aspect-ratio')]: `${data.width}/${data.height}`,
+    [withPrefix('main-color')]: `rgb(${data.mainColor.join(',')})`,
+  };
+
+  return attrs as ImgData['htmlAttributes'];
+};
+
+export const generateHtmlStyles = (
+  data: Omit<ImgData, 'htmlAttributes' | 'htmlStyles' | 'html'>,
+) => {
+  const styles = {
+    'max-width': '100%',
+    'max-height': '100%',
+    width: `${data.width}px`,
+    height: `auto`,
+    'background-color': `rgb(${data.mainColor.join(',')})`,
+    'aspect-ratio': `${data.width}/${data.height}`,
+  };
+
+  return styles as ImgData['htmlStyles'];
+};
+
+export const generateHtml = (data: Omit<ImgData, 'html'>) => {
+  const attrsString = Object.entries(data.htmlAttributes)
+    .map(([key, value]) => `${key}="${value}"`)
+    .join(' ');
+
+  const stylesString = Object.entries(data.htmlStyles)
+    .map(([key, value]) => `${key}: ${value};`)
+    .join(' ');
+
+  return `<div img-loading ${attrsString} style="${stylesString}"></div>`;
+};
+
 if (require.main === module) {
   const images = getAllImagesFromDir(args.inDir);
   getAll(images, args.outDir, args.inDir).then((results) => {
-    const items = results.map(
-      (result) => `
-          <div
-              img-loading
-              ${withPrefix('thumbnail')}="${result.thumbnail}"
-              ${withPrefix('fullsize')}="${result.fullSize}"
-              ${withPrefix('width')}="${result.width}"
-              ${withPrefix('height')}="${result.height}"
-              ${withPrefix('aspect-ratio')}="${result.width}/${result.height}"
-              ${withPrefix('main-color')}="rgb(${result.mainColor.join(',')})"
-              style="
-                max-width: 100%;
-                max-height: 100%;
-                width: ${result.width}px;
-                height: auto;
-                background-color: rgb(${result.mainColor.join(',')});
-                aspect-ratio: ${result.width}/${result.height};
-              "
-          ></div>
-          `,
-    );
+    const items = results.map(generateHtml);
 
     const htmlFile = `<main>${items.join('\n')}</main>`;
     writeFileSync(path.join(args.outDir, 'index.html'), htmlFile);

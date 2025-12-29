@@ -53,8 +53,10 @@ export const generateThumbnailFromImage = async (
   if (originalOrientation && originalOrientation !== 1) {
     originalImage.rotate();
     if (originalOrientation >= 5 && originalOrientation <= 8) {
-      width = height;
-      height = width;
+      const initialWidth = width;
+      const initialHeight = height;
+      width = initialHeight;
+      height = initialWidth;
     }
   }
 

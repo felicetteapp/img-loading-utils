@@ -47,8 +47,15 @@ export const generateThumbnailFromImage = async (
 
   const originalOrientation = metadata.orientation || 1;
 
+  let width = metadata.width || 0;
+  let height = metadata.height || 0;
+
   if (originalOrientation && originalOrientation !== 1) {
     originalImage.rotate();
+    if (originalOrientation >= 5 && originalOrientation <= 8) {
+      width = height;
+      height = width;
+    }
   }
 
   await originalImage
@@ -68,8 +75,8 @@ export const generateThumbnailFromImage = async (
     thumbnail: outPath,
     colors: colors,
     mainColor,
-    width: metadata.width ?? 0,
-    height: metadata.height ?? 0,
+    width,
+    height,
   };
 
   const htmlAttributes = generateHtmlAttributes(partialData);
